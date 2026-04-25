@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cognitive Bias Detection</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container { max-width: 820px; margin: 0 auto; }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Input panel ── */
+        .input-panel {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #334155;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 130px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            font-size: 1rem;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        textarea:focus { border-color: #38bdf8; }
+        textarea::placeholder { color: #64748b; }
+
+        .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+        button {
+            padding: 0.65rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: opacity 0.15s, transform 0.1s;
+            font-family: inherit;
+        }
+        button:hover  { opacity: 0.85; }
+        button:active { transform: scale(0.97); }
+        #analyzeBtn { background: #3b82f6; color: #fff; flex: 1; }
+        #clearBtn   { background: #334155; color: #cbd5e1; }
+
+        /* ── Score bar ── */
+        .score-section {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #334155;
+            display: none;
+        }
+        .score-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.6rem;
+        }
+        .score-label { font-size: 0.9rem; color: #94a3b8; }
+        .score-value { font-size: 1.8rem; font-weight: 700; }
+
+        .bar-track {
+            width: 100%;
+            height: 10px;
+            background: #334155;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 5px;
+            transition: width 0.6s ease, background 0.4s;
+        }
+        .score-meta {
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        /* ── Cards ── */
+        .results-section { display: none; }
+
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 0.85rem;
+            border: 1px solid #334155;
+        }
+        .card h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 0.85rem;
+        }
+
+        /* ── Sentence rows ── */
+        .sentence-row {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #1e3a5f;
+        }
+        .sentence-row:last-child { border-bottom: none; }
+
+        .sentence-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.3rem;
+        }
+        .sentence-text {
+            flex: 1;
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+        .badge {
+            flex-shrink: 0;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.25em 0.7em;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .badge-neutral  { background: #14532d; color: #4ade80; }
+        .badge-low      { background: #422006; color: #fb923c; }
+        .badge-moderate { background: #7c2d12; color: #fca5a5; }
+        .badge-high     { background: #450a0a; color: #f87171; }
+
+        .sentence-meta { font-size: 0.78rem; color: #64748b; margin-bottom: 0.4rem; }
+
+        /* ── Rewrite box (per sentence) ── */
+        .rewrite-row {
+            margin-top: 0.5rem;
+            padding: 0.6rem 0.85rem;
+            background: #0f172a;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+            font-size: 0.875rem;
+            color: #93c5fd;
+            line-height: 1.6;
+            white-space: pre-line;   /* renders \n as line break */
+        }
+        .rewrite-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #3b82f6;
+            margin-bottom: 0.3rem;
+        }
+        .rewrite-row.structural {
+            border-left-color: #f59e0b;
+            color: #fde68a;
+        }
+        .rewrite-row.structural .rewrite-label { color: #f59e0b; }
+
+        /* ── Highlighted text ── */
+        .highlighted-box {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            line-height: 1.75;
+            font-size: 0.95rem;
+        }
+        .bias {
+            color: #f87171;
+            font-weight: 700;
+            text-decoration: underline wavy #f87171;
+        }
+
+        /* ── Full rewrite box (bottom panel) ── */
+        .rewrite-full {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.75;
+            color: #a5f3fc;
+            white-space: pre-line;   /* renders \n as line break */
+            border-left: 3px solid #0ea5e9;
+        }
+        .suggestion-note {
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: #fde68a;
+            background: #1c1505;
+            border-radius: 6px;
+            padding: 0.6rem 0.85rem;
+            border-left: 3px solid #f59e0b;
+            line-height: 1.6;
+        }
+
+        /* ── Most flagged callout ── */
+        .callout {
+            background: #1c1917;
+            border-left: 4px solid #f87171;
+            border-radius: 0 8px 8px 0;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            color: #fca5a5;
+            line-height: 1.5;
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            display: none;
+            text-align: center;
+            padding: 1.5rem;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        .spinner::before {
+            content: '';
+            display: inline-block;
+            width: 22px; height: 22px;
+            border: 3px solid #334155;
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <h1> Cognitive Bias Detection</h1>
+    <p class="subtitle">Paste any text to detect loaded language, framing bias, and get neutral rewrites.</p>
+
+    <div class="input-panel">
+        <textarea id="inputText" placeholder="Paste an article, headline, or paragraph here…"></textarea>
+        <div class="btn-row">
+            <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+            <button id="clearBtn"   onclick="clearAll()">Clear</button>
+        </div>
+    </div>
+
+    <div class="spinner" id="spinner">Analyzing…</div>
+
+    <!-- Score bar -->
+    <div class="score-section" id="scoreSection">
+        <div class="score-header">
+            <span class="score-label">Overall Bias Score</span>
+            <span class="score-value" id="scoreValue">—</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+        <div class="score-meta">
+            <span id="overallLabel">—</span>
+            <span id="sentenceCount">—</span>
+        </div>
+    </div>
+
+    <div class="results-section" id="resultsSection">
+
+        <!-- 1. Sentence breakdown -->
+        <div class="card">
+            <h3>Sentence Analysis</h3>
+            <div id="sentenceList"></div>
+        </div>
+
+        <!-- 2. Most flagged sentence -->
+        <div class="card" id="mostBiasedCard" style="display:none">
+            <h3>Most Flagged Sentence</h3>
+            <div class="callout" id="mostBiasedText"></div>
+        </div>
+
+        <!-- 3. Highlighted loaded language -->
+        <div class="card">
+            <h3>Highlighted Loaded Language</h3>
+            <div class="highlighted-box" id="highlightedBox"></div>
+        </div>
+
+        <!-- 4. Full-text neutral rewrite  ← was missing before -->
+        <div class="card" id="rewriteCard" style="display:none">
+            <h3>Suggested Neutral Wording</h3>
+            <div id="rewriteContent"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* ── Helpers ── */
+function esc(str) {
+    if (str == null) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function badgeClass(score) {
+    if (score < 0.35) return "badge-neutral";
+    if (score < 0.50) return "badge-low";
+    if (score < 0.65) return "badge-moderate";
+    return "badge-high";
+}
+
+function barColor(score) {
+    if (score < 0.35) return "#22c55e";
+    if (score < 0.50) return "#f59e0b";
+    if (score < 0.65) return "#ef4444";
+    return "#7f1d1d";
+}
+
+/* Split rewritten text and 💡 suggestion into two parts */
+function splitRewrite(text) {
+    const idx = text.indexOf("\n\n💡");
+    if (idx === -1) return { main: text, note: null };
+    return { main: text.slice(0, idx), note: text.slice(idx + 2) };
+}
+
+/* ── Analyze ── */
+async function analyze() {
+    const text = document.getElementById("inputText").value.trim();
+    if (!text) { alert("Please enter some text."); return; }
+
+    document.getElementById("spinner").style.display       = "block";
+    document.getElementById("scoreSection").style.display  = "none";
+    document.getElementById("resultsSection").style.display = "none";
+
+    try {
+        const res  = await fetch("/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+        document.getElementById("spinner").style.display = "none";
+        if (data.error) { alert(data.error); return; }
+        render(data);
+    } catch (err) {
+        document.getElementById("spinner").style.display = "none";
+        console.error(err);
+        alert("Something went wrong. Check the console (F12).");
+    }
+}
+
+/* ── Render ── */
+function render(data) {
+    /* Score bar */
+    const pct = (data.overall_bias * 100).toFixed(1);
+    const bar = document.getElementById("bar");
+    bar.style.width      = pct + "%";
+    bar.style.background = barColor(data.overall_bias);
+    document.getElementById("scoreValue").textContent   = pct + "%";
+    document.getElementById("overallLabel").textContent = data.overall_label || "";
+    document.getElementById("sentenceCount").textContent =
+        data.sentence_count != null
+            ? `${data.sentence_count} sentence${data.sentence_count !== 1 ? "s" : ""} analysed`
+            : "";
+    document.getElementById("scoreSection").style.display = "block";
+
+    /* Sentence rows */
+    let html = "";
+    (data.sentences || []).forEach(s => {
+        /* FIX: s.confidence is already "77.1%" — never multiply it */
+        html += `
+        <div class="sentence-row">
+            <div class="sentence-top">
+                <span class="sentence-text">${esc(s.sentence)}</span>
+                <span class="badge ${badgeClass(s.score)}">${esc(s.label)}</span>
+            </div>
+            <div class="sentence-meta">Score: ${s.score} &nbsp;|&nbsp; Confidence: ${esc(s.confidence)}</div>`;
+
+        /* Per-sentence rewrite — shown only for biased sentences */
+        if (s.is_biased && s.rewritten) {
+            const isStructural = s.rewrite_type === "structural";
+            const { main, note } = splitRewrite(s.rewritten);
+            html += `
+            <div class="rewrite-row ${isStructural ? "structural" : ""}">
+                <div class="rewrite-label">
+                    ${isStructural ? "⚠️ Structural suggestion" : "✏️ Suggested neutral wording"}
+                </div>
+                ${esc(main)}
+                ${note ? `<div style="margin-top:6px;opacity:0.85">${esc(note.trim())}</div>` : ""}
+            </div>`;
+        }
+        html += `</div>`;
+    });
+    document.getElementById("sentenceList").innerHTML = html;
+
+    /* Most flagged */
+    const mostCard = document.getElementById("mostBiasedCard");
+    if (data.most_biased_sentence) {
+        document.getElementById("mostBiasedText").textContent =
+            `"${data.most_biased_sentence}"  (score: ${data.most_biased_score})`;
+        mostCard.style.display = "block";
+    } else {
+        mostCard.style.display = "none";
+    }
+
+    /* Highlighted (server sends safe HTML with <span class="bias"> tags) */
+    document.getElementById("highlightedBox").innerHTML = data.highlighted || "";
+
+    /* Full rewrite panel — FIX: was completely missing before */
+    const rewriteCard    = document.getElementById("rewriteCard");
+    const rewriteContent = document.getElementById("rewriteContent");
+    if (data.rewritten) {
+        const { main, note } = splitRewrite(data.rewritten);
+        let rhtml = `<div class="rewrite-full">${esc(main)}</div>`;
+        if (note) {
+            rhtml += `<div class="suggestion-note">${esc(note.trim())}</div>`;
+        }
+        rewriteContent.innerHTML = rhtml;
+        rewriteCard.style.display = "block";
+    } else {
+        rewriteCard.style.display = "none";
+    }
+
+    document.getElementById("resultsSection").style.display = "block";
+}
+
+/* ── Clear ── */
+function clearAll() {
+    document.getElementById("inputText").value           = "";
+    document.getElementById("scoreSection").style.display  = "none";
+    document.getElementById("resultsSection").style.display = "none";
+    document.getElementById("bar").style.width           = "0%";
+}
+
+/* Allow Ctrl+Enter to submit */
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("inputText").addEventListener("keydown", e => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) analyze();
+    });
+});
+</script>
+</body>
+</html>
